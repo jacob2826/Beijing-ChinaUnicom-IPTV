@@ -5,6 +5,9 @@ on:
   schedule:
     - cron: "0 3 * * *" # 每天北京时间 11:00
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -22,30 +25,14 @@ jobs:
           mkdir -p dist
           python3 scripts/build_m3u.py > dist/iptv.m3u
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: iptv-dist
-          path: dist
-
-      - name: Debug Cloudflare Pages config (non-secret)
+      - name: Commit m3u
         run: |
-          echo "CF_ACCOUNT_ID=${{ vars.CF_ACCOUNT_ID }}"
-          echo "CF_PROJECT_NAME=${{ vars.CF_PROJECT_NAME }}"
-          echo "CF_ACCOUNT_ID_LEN=${#CF_ACCOUNT_ID}"
-          echo "CF_PROJECT_NAME_LEN=${#CF_PROJECT_NAME}"
-        env:
-          CF_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
-          CF_PROJECT_NAME: ${{ vars.CF_PROJECT_NAME }}
-
-      - name: Publish to Cloudflare Pages
-        uses: cloudflare/pages-action@v1
-        with:
-          # 需要在仓库 Secrets 中配置以下 Cloudflare 凭证，避免 workflow 报错
-          # - CF_PAGES_TOKEN: Cloudflare API Token，至少具备 Pages 的发布权限
-          # - CF_ACCOUNT_ID: Cloudflare 账户 ID
-          # - CF_PROJECT_NAME: Cloudflare Pages 项目名称（控制台中的项目名，非域名）
-          apiToken: ${{ secrets.CF_PAGES_TOKEN }}
-          accountId: ${{ vars.CF_ACCOUNT_ID }}
-          projectName: ${{ vars.CF_PROJECT_NAME }}
-          directory: dist
+          if git status --porcelain dist/iptv.m3u | grep -q "."; then
+            git add dist/iptv.m3u
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -m "Update iptv.m3u"
+            git push
+          else
+            echo "No changes in dist/iptv.m3u"
+          fi

@@ -1,0 +1,37 @@
+name: Build IPTV M3U
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * *" # 每天北京时间 11:00
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Build m3u
+        run: |
+          mkdir -p dist
+          python3 scripts/build_m3u.py > dist/iptv.m3u
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: iptv-dist
+          path: dist
+
+      - name: Publish to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CF_PAGES_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          projectName: ${{ secrets.CF_PROJECT_NAME }}
+          directory: dist
